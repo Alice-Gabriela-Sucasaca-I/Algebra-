@@ -1,0 +1,165 @@
+#include <iostream>
+#include <string>
+#include <vector>
+using namespace std;
+
+const string tabla = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ., ?";
+
+// Calcular MCD para verificar si e es coprimo con phi
+int gcd(int a, int b) {
+    while (b != 0) {
+        int temp = b;
+        b = a % b;
+        a = temp;
+    }
+    return a;
+}
+
+long long exponenciacionModularRapida(long long base, long long exponente, long long modulo) {
+    long long resultado = 1;
+    base = base % modulo;
+
+    while (exponente > 0) {
+        if (exponente % 2 == 1) {
+            resultado = (resultado * base) % modulo;
+        }
+        base = (base * base) % modulo;
+        exponente /= 2;
+    }
+
+    return resultado;
+}
+
+int indice(char c) {
+    for (int i = 0; i < 40; i++) {
+        if (tabla[i] == c) {
+            return i;
+        }
+    }
+    return 0; // Devolver 0 ('A') si no se encuentra el carácter
+}
+
+// Convertir texto a bloques (un carácter por bloque)
+vector<int> bloqueATexto(string text) {
+    vector<int> bloques;
+    for (char c : text) {
+        int idx = indice(toupper(c));
+        if (idx >= 40) {
+            cout << "Advertencia: Carácter '" << c << "' no está en la tabla, se usará 'A'" << endl;
+        }
+        bloques.push_back(idx);
+    }
+    return bloques;
+}
+
+// Convertir bloques a texto
+string bloquesATexto(const vector<long long>& bloques) {
+    string texto = "";
+    for (long long b : bloques) {
+        if (b < 0 || b >= 40) {
+            texto += "?"; // Carácter de error si el bloque es inválido
+            continue;
+        }
+        texto += tabla[static_cast<int>(b)];
+    }
+    return texto;
+}
+
+// Inverso modular con algoritmo extendido de Euclides
+int inversoModular(int e, int phi) {
+    int t = 0, nuevo_t = 1;
+    int r = phi, nuevo_r = e;
+    while (nuevo_r != 0) {
+        int cociente = r / nuevo_r;
+        int temp_t = t;
+        t = nuevo_t;
+        nuevo_t = temp_t - cociente * nuevo_t;
+
+        int temp_r = r;
+        r = nuevo_r;
+        nuevo_r = temp_r - cociente * nuevo_r;
+    }
+    if (r != 1) {
+        cout << "Error: e no es coprimo con phi, no existe inverso modular" << endl;
+        return -1;
+    }
+    return (t < 0) ? (t + phi) % phi : t;
+}
+
+// Cifrado
+vector<long long> cifradoRSA(const vector<int>& bloques, int e, long long n) {
+    vector<long long> cifrados;
+    for (int b : bloques) {
+        if (b >= n) {
+            cout << "Advertencia: Bloque " << b << " excede n (" << n << ")" << endl;
+        }
+        cifrados.push_back(exponenciacionModularRapida(b, e, n));
+    }
+    return cifrados;
+}
+
+// Descifrado
+vector<long long> descifradoRSA(const vector<long long>& bloquesCifrados, int d, long long n) {
+    vector<long long> descifrados;
+    for (long long b : bloquesCifrados) {
+        descifrados.push_back(exponenciacionModularRapida(b, d, n));
+    }
+    return descifrados;
+}
+
+void mensajeProcesado(string mensaje, int e, int d, long long n) {
+    cout << "\nProcesando mensaje: " << mensaje << endl;
+
+    vector<int> bloques = bloqueATexto(mensaje);
+    cout << "Bloques numericos: ";
+    for (int b : bloques) {
+        cout << b << " ";
+    }
+    cout << endl;
+
+    vector<long long> cifrados = cifradoRSA(bloques, e, n);
+    cout << "Bloques cifrados: ";
+    for (long long c : cifrados) {
+        cout << c << " ";
+    }
+    cout << endl;
+
+    vector<long long> descifrados = descifradoRSA(cifrados, d, n);
+    cout << "Bloques descifrados: ";
+    for (long long d : descifrados) {
+        cout << d << " ";
+    }
+    cout << endl;
+
+    string textoRecuperado = bloquesATexto(descifrados);
+    cout << "Texto Recuperado: " << textoRecuperado << endl;
+}
+
+int main() {
+    int p = 17, q = 23;
+    long long n = static_cast<long long>(p) * q; // n = 391
+    int phi = (p - 1) * (q - 1); // phi = 352
+    int e = 3;
+
+    // Verificar si e es coprimo con phi
+    if (gcd(e, phi) != 1) {
+        cout << "Error: e=" << e << " no es coprimo con phi=" << phi << endl;
+        return 1;
+    }
+
+    int d = inversoModular(e, phi);
+    if (d == -1) {
+        cout << "No se pudo calcular el inverso modular" << endl;
+        return 1;
+    }
+
+    cout << "Clave pública (e,n): (" << e << ", " << n << ")\n";
+    cout << "Clave privada (d,n): (" << d << ", " << n << ")\n";
+
+    mensajeProcesado("HOLA!", e, d, n);
+    mensajeProcesado("BUENAS NOCHES", e, d, n);
+    mensajeProcesado("BUENAS TARDES", e, d, n);
+    mensajeProcesado("COMO ESTAS", e, d, n);
+
+    return 0;
+}
